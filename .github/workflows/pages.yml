@@ -1,0 +1,52 @@
+name: Udgiv Braending
+on:
+  push:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 * * * *'
+permissions:
+  contents: read
+concurrency:
+  group: braending-pages
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.ref_name == github.event.repository.default_branch && (github.event_name != 'schedule' || vars.STROM_VERIFIED == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test
+        run: node --test tests/*.test.mjs
+      - name: Hent priser hvis API er verificeret
+        run: node scripts/update-prices.mjs
+        env:
+          STROM_VERIFIED: ${{ vars.STROM_VERIFIED }}
+          STROM_API_KEY: ${{ secrets.STROM_API_KEY }}
+          STROM_API_URL: ${{ secrets.STROM_API_URL }}
+          STROM_AUTH_HEADER: ${{ vars.STROM_AUTH_HEADER }}
+          STROM_AUTH_PREFIX: ${{ vars.STROM_AUTH_PREFIX }}
+          STROM_INTERVAL_MINUTES: ${{ vars.STROM_INTERVAL_MINUTES }}
+      - name: Byg
+        run: node build.mjs
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
