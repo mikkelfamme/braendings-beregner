@@ -1,119 +1,103 @@
-/** Pure calculation engine. All durations are elapsed minutes, prices DKK/kWh. */
-export const ZONE = 'Europe/Copenhagen';
-export const DEFAULT_PROGRAMS = [
- {id:1,name:'Langsom forgl\u00f8dning',temp:980,minutes:810,kwh:null,profile:[],basis:'estimate'},
- {id:2,name:'Normal forgl\u00f8dning',temp:980,minutes:510,kwh:null,profile:[],basis:'estimate'},
- {id:3,name:'Lert\u00f8jsglasur',temp:1020,minutes:390,kwh:null,profile:[],basis:'estimate'},
- {id:4,name:'Stent\u00f8jsglasur',temp:1260,minutes:460,kwh:null,profile:[],basis:'estimate'}
-];
-export function finite(value, label='Tal') {
- if(value===null||value===undefined||typeof value==='boolean'||String(value).trim()==='') throw new Error(label+' mangler.');
- const n=typeof value==='number'?value:Number(String(value).replace(',','.'));
- if(!Number.isFinite(n)) throw new Error(label+' er ikke et gyldigt tal.');
- return n;
-}
-const formatter=new Intl.DateTimeFormat('sv-SE',{timeZone:ZONE,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
-export function localParts(ms) {
- const p=Object.fromEntries(formatter.formatToParts(new Date(ms)).map(x=>[x.type,x.value]));
- return {date:`${p.year}-${p.month}-${p.day}`,time:`${p.hour}:${p.minute}`};
-}
-export function localToEpoch(date,time,occurrence='first') {
- if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(time)) throw new Error('V\u00e6lg en gyldig dato og et klokkesl\u00e6t.');
- const wall=Date.parse(`${date}T${time}:00Z`);
- if(!Number.isFinite(wall)) throw new Error('Ugyldig dato.');
- // Danish civil time uses UTC+1 or UTC+2; try both rather than trusting phone timezone.
- const matches=[wall-7200000,wall-3600000].filter(ms=>{const p=localParts(ms);return p.date===date&&p.time===time;});
- if(!matches.length) throw new Error('Tidspunktet findes ikke i dansk tid. Ved sommertid springer uret fra 02 til 03.');
- return {ms:matches[occurrence==='second'?matches.length-1:0],ambiguous:matches.length>1};
-}
-export function addDays(date,days) {
- const ms=Date.parse(date+'T12:00:00Z');
- if(!Number.isFinite(ms)) throw new Error('Ugyldig dato.');
- return new Date(ms+days*86400000).toISOString().slice(0,10);
-}
-export function dayBounds(date) {return [localToEpoch(date,'00:00').ms,localToEpoch(addDays(date,1),'00:00').ms];}
-export function validateProfile(program,power=7) {
- power=finite(power,'Ovnens effekt');
- if(power<=0||power>100) throw new Error('Ovnens effekt skal v\u00e6re mellem 0 og 100 kW.');
- let profile=program.profile;
- if(!Array.isArray(profile)||!profile.length) {
-  const minutes=finite(program.minutes,'Varighed'),kwh=finite(program.kwh,'Forbrug i kWh');
-  profile=[{minutes,kwh}];
+import {finite,localParts,localToEpoch,addDays,dayBounds} from './time.mjs';
+import {ALL_PROGRAMS,DEFAULT_SETTINGS,factoryProgram} from './programs.mjs';
+export {finite,localParts,localToEpoch,addDays,dayBounds,ALL_PROGRAMS,DEFAULT_SETTINGS,factoryProgram};
+const MINUTE=60000,HOUR=3600000;
+
+function derivedActiveMinutes(program,startTemperature=20){
+ let temp=startTemperature,minutes=0,passiveCooling=false;
+ for(const s of program.segments){
+  if(s.rate===null){passiveCooling=true;temp=s.temp;}
+  else if(s.temp!==temp)minutes+=Math.abs(s.temp-temp)/s.rate*60;
+  if(s.hold>0)minutes+=s.hold;
+  temp=s.temp;
  }
- if(profile.length>1000) throw new Error('H\u00f8jst 1000 forbrugsintervaller.');
- const clean=profile.map((p,i)=>{
-  const minutes=finite(p.minutes,`Varighed i interval ${i+1}`),kwh=finite(p.kwh,`kWh i interval ${i+1}`);
-  if(minutes<=0||kwh<0) throw new Error('Varighed skal v\u00e6re positiv og kWh mindst 0.');
-  if(kwh>power*minutes/60+0.00001) throw new Error(`Interval ${i+1} overstiger ovnens maksimale effekt p\u00e5 ${power} kW.`);
-  return {minutes,kwh};
- });
- const minutes=clean.reduce((s,p)=>s+p.minutes,0),kwh=clean.reduce((s,p)=>s+p.kwh,0);
- if(minutes>2880||kwh<=0) throw new Error('Programmet skal bruge str\u00f8m og vare h\u00f8jst 48 timer.');
- return {profile:clean,minutes,kwh,uniform:!Array.isArray(program.profile)||!program.profile.length};
+ return {minutes,passiveCooling};
 }
-export function normalizePrices(input) {
- if(!Array.isArray(input)) throw new Error('Prisdata skal v\u00e6re en liste.');
- const list=input.map(p=>({start:finite(p.start,'Prisstart'),end:finite(p.end,'Prisslut'),price:finite(p.price,'Elpris'),forecast:p.forecast===true})).sort((a,b)=>a.start-b.start);
- for(let i=0;i<list.length;i++) {
-  if(list[i].end<=list[i].start) throw new Error('Et prisinterval har ugyldig varighed.');
-  if(i&&list[i].start<list[i-1].end) throw new Error('Prisintervaller overlapper. Beregningen er stoppet.');
- }
- return list;
+
+/**
+ * Standard estimate used for every factory firing:
+ * estimated kWh = kiln kW x active program hours x 0.50.
+ * 0.50 is the fixed adjustment/load factor. Natural cooling after program end is 0 kWh.
+ */
+export function buildProgram(id,settings=DEFAULT_SETTINGS){
+ const f=factoryProgram(id);
+ const power=finite(settings.power??7,'Effekt'),loadFactor=finite(settings.loadFactor??0.5,'Belastningsfaktor');
+ if(Math.abs(power-7)>1e-9)throw Error('SC 100 beregnes med fast mærkeeffekt på 7,0 kW.');
+ if(Math.abs(loadFactor-0.5)>1e-9)throw Error('Standardberegningen bruger fast belastningsfaktor 0,50.');
+ const derived=derivedActiveMinutes(f,finite(settings.startTemperature??20,'Starttemperatur'));
+ const minutes=f.minutes??derived.minutes;
+ if(!Number.isFinite(minutes)||minutes<=0)throw Error('Programmet mangler beregningsvarighed.');
+ const effectiveKw=power*loadFactor,kwh=effectiveKw*minutes/60;
+ return {...f,power,loadFactor,effectiveKw,minutes,kwh,passiveCooling:derived.passiveCooling,
+  profile:[{minutes,kwh,label:'Standardestimat'}],basis:'standard-50',basisLabel:'Standardestimat · 50 % belastning',
+  coolingText:derived.passiveCooling?'Programmet har desuden en naturlig SkIP-afkøling med ukendt varighed.':'Efter programmet køler ovnen naturligt ned; manualen angiver ingen fast tid.'};
 }
-export function calculate(start,program,rawPrices,power=7) {
- start=finite(start,'Starttid');
- const p=validateProfile(program,power),prices=normalizePrices(rawPrices);
- let cursor=start,cost=0,coveredEnergy=0,missingMs=0,hasForecast=false;
- const breakdown=[];
- for(const phase of p.profile) {
-  const end=cursor+phase.minutes*60000,kw=phase.kwh/(phase.minutes/60);
-  let coverage=0;
-  for(const price of prices) {
-   if(price.end<=cursor) continue;
-   if(price.start>=end) break;
-   const a=Math.max(cursor,price.start),b=Math.min(end,price.end);
-   if(b<=a) continue;
-   const kwh=kw*(b-a)/3600000,amount=kwh*price.price;
-   coverage+=b-a;coveredEnergy+=kwh;cost+=amount;hasForecast ||= price.forecast;
-   breakdown.push({start:a,end:b,kwh,price:price.price,cost:amount,forecast:price.forecast});
+
+export function validateProfile(profile,power=7){
+ if(!Array.isArray(profile)||!profile.length)throw Error('Programmet mangler en gyldig forbrugsprofil.');
+ const clean=profile.map(p=>{const minutes=finite(p.minutes,'Varighed'),kwh=finite(p.kwh,'Forbrug');if(minutes<=0||kwh<0||kwh>power*minutes/60+1e-6)throw Error('Ugyldigt forbrug.');return {minutes,kwh,label:p.label||''};});
+ return {profile:clean,minutes:clean.reduce((s,p)=>s+p.minutes,0),kwh:clean.reduce((s,p)=>s+p.kwh,0)};
+}
+
+export function normalizePrices(input){
+ if(!Array.isArray(input)||input.length>60000)throw Error('Ugyldige prisdata.');
+ const p=input.map(x=>({start:finite(x.start,'Prisstart'),end:finite(x.end,'Prisslut'),price:finite(x.price,'Elpris'),forecast:x.forecast===true})).sort((a,b)=>a.start-b.start);
+ for(let i=0;i<p.length;i++){if(p[i].end<=p[i].start||p[i].end-p[i].start>HOUR)throw Error('Ugyldigt prisinterval.');if(i&&p[i].start<p[i-1].end)throw Error('Prisintervaller overlapper.');}
+ return p;
+}
+
+function costPrepared(start,program,prices,detail=false){
+ let cursor=start,cost=0,missing=0,forecastKwh=0,index=0;const breakdown=[];
+ while(index<prices.length&&prices[index].end<=start)index++;
+ for(const phase of program.profile){
+  const end=cursor+phase.minutes*MINUTE,kw=phase.kwh/(phase.minutes/60);let coverage=0;
+  for(let i=index;i<prices.length;i++){
+   const p=prices[i];if(p.start>=end)break;if(p.end<=cursor){index=i+1;continue;}
+   const a=Math.max(cursor,p.start),b=Math.min(end,p.end);if(b<=a)continue;
+   const energy=kw*(b-a)/HOUR,amount=energy*p.price;coverage+=b-a;cost+=amount;if(p.forecast)forecastKwh+=energy;
+   if(detail)breakdown.push({start:a,end:b,kwh:energy,price:p.price,cost:amount,forecast:p.forecast});
   }
-  // Missing prices during a zero-consumption cooling phase do not affect cost.
-  if(kw>0) missingMs+=end-cursor-coverage;
-  cursor=end;
+  missing+=Math.max(0,end-cursor-coverage);cursor=end;
  }
- const complete=missingMs<1;
- return {start,end:cursor,minutes:p.minutes,kwh:p.kwh,uniform:p.uniform,complete,cost:complete?cost:null,partialCost:cost,coveredEnergy,missingMinutes:missingMs/60000,forecast:hasForecast,breakdown};
+ const complete=missing<10;
+ return {start,end:cursor,cost:complete?cost:null,complete,missingMinutes:missing/MINUTE,kwh:program.kwh,minutes:program.minutes,
+  forecast:forecastKwh>1e-9,forecastKwh,breakdown,programId:program.id,programName:program.name,basis:program.basis,basisLabel:program.basisLabel,
+  power:program.power,loadFactor:program.loadFactor,effectiveKw:program.effectiveKw,passiveCooling:program.passiveCooling,coolingText:program.coolingText};
 }
-export function optimize(first,last,program,prices,power=7,stepMinutes=15) {
- if(last<first||last-first>86400000) throw new Error('V\u00e6lg et startvindue p\u00e5 h\u00f8jst 24 timer.');
- if(stepMinutes<1) throw new Error('Ugyldigt tidsinterval.');
- const candidates=[];let skipped=0;
- for(let t=first;t<=last;t+=stepMinutes*60000) {
-  const r=calculate(t,program,prices,power);
-  if(r.complete&&!r.forecast) candidates.push(r); else skipped++;
+export function calculate(start,program,rawPrices){start=finite(start,'Starttid');validateProfile(program.profile,program.power);return costPrepared(start,program,normalizePrices(rawPrices),true);}
+
+export function findCheapest(program,rawPrices,now=Date.now()){
+ validateProfile(program.profile,program.power);const prices=normalizePrices(rawPrices);
+ const first=Math.ceil(finite(now)/MINUTE)*MINUTE,last=now+72*HOUR;let checked=0,skipped=0;const candidates=[];
+ for(let start=first;start<=last;start+=MINUTE){checked++;const r=costPrepared(start,program,prices);if(!r.complete){skipped++;continue;}candidates.push(r);}
+ candidates.sort((a,b)=>Math.abs(a.cost-b.cost)<1e-8?a.start-b.start:a.cost-b.cost);
+ const best=candidates[0]||null;
+ const alternative=candidates.find(r=>{const {time}=localParts(r.start);return (!best||Math.abs(r.start-best.start)>=HOUR)&&time>='06:30'&&time<='21:30';})||null;
+ return {first,last,checked,skipped,covered:checked-skipped,allStartsCovered:skipped===0,best,alternative,stepMinutes:1};
+}
+
+/** Aggregate 15/60-minute API intervals to complete clock hours for display. */
+export function hourlyPrices(rawPrices,now=Date.now(),maxHours=168){
+ const prices=normalizePrices(rawPrices),first=Math.floor(now/HOUR)*HOUR,last=first+maxHours*HOUR,out=[];
+ for(let start=first;start<last;start+=HOUR){
+  const end=start+HOUR;let weighted=0,coverage=0,forecast=false;
+  for(const p of prices){if(p.start>=end)break;if(p.end<=start)continue;const a=Math.max(start,p.start),b=Math.min(end,p.end);if(b<=a)continue;weighted+=p.price*(b-a);coverage+=b-a;if(p.forecast)forecast=true;}
+  if(coverage>=HOUR-10)out.push({start,end,price:weighted/coverage,forecast});
  }
- candidates.sort((a,b)=>a.cost-b.cost||a.start-b.start);
- return {candidates,skipped,stepMinutes};
+ return out;
 }
-export function demoPrices(date,days=3) {
- const start=dayBounds(date)[0],end=dayBounds(addDays(date,days))[0],rows=[];
- for(let t=start;t<end;t+=900000) {
-  const time=localParts(t).time,h=Number(time.slice(0,2))+Number(time.slice(3))/60;
-  const price=1.42+0.85*Math.exp(-Math.pow((h-18)/2.2,2))-0.75*Math.exp(-Math.pow((h-12.5)/3.5,2))+0.14*Math.cos(h/2);
-  rows.push({start:t,end:t+900000,price:Math.round(price*10000)/10000,forecast:false});
- }
- return rows;
-}
-export function parseStromligning(payload,intervalMinutes=15) {
- if(!payload||!Array.isArray(payload.prices)) throw new Error('Ukendt API-svar. Forventede prices-listen fra Str\u00f8mligning.');
- const duration=finite(intervalMinutes,'API-interval')*60000;
- if(![900000,3600000].includes(duration)) throw new Error('API-interval skal v\u00e6re 15 eller 60 minutter.');
- const all=payload.prices.map(row=>{
-  if(typeof row.date!=='string'||!/(Z|[+-]\d{2}:?\d{2})$/.test(row.date)) throw new Error('API-tidsstempel mangler tidszone. Beregning er stoppet.');
-  const unit=row.price?.unit;
-  if(unit&&!['DKK/kWh','kr/kWh','DKK','kWh'].includes(unit)) throw new Error('Ukendt prisenhed fra API: '+String(unit).slice(0,30));
-  const forecast=row.forecast===true||row.isForecast===true;
-  return {start:Date.parse(row.date),end:Date.parse(row.date)+duration,price:finite(row.price?.total,'price.total'),forecast};
+
+export function parseStromligning(payload,intervalMinutes=15){
+ if(!payload||!Array.isArray(payload.prices))throw Error('API_FORMAT: Svaret mangler prices-listen.');
+ if(![15,60].includes(Number(intervalMinutes)))throw Error('API_INTERVAL: Vælg 15 eller 60 minutter.');
+ const raw=payload.prices.map(row=>{
+  if(typeof row.date!=='string'||!/(Z|[+-]\d{2}:?\d{2})$/.test(row.date))throw Error('API_TIMEZONE: Tidszone mangler.');
+  const unit=row.price?.unit;if(unit&&!['DKK/kWh','kr/kWh','DKK','kWh'].includes(unit))throw Error('API_UNIT: Ukendt enhed.');
+  const flag=row.forecast??row.isForecast??false;if(typeof flag!=='boolean')throw Error('API_FORECAST: Uventet prognosemarkering.');
+  const start=Date.parse(row.date);let end=start+Number(intervalMinutes)*MINUTE;
+  if(row.endDate!==undefined){if(typeof row.endDate!=='string'||!/(Z|[+-]\d{2}:?\d{2})$/.test(row.endDate))throw Error('API_TIMEZONE: Ugyldig sluttid.');end=Date.parse(row.endDate);}
+  return {start,end,price:finite(row.price?.total,'price.total'),forecast:flag};
  });
- return normalizePrices(all).filter(p=>!p.forecast);
+ const dedup=new Map();for(const p of raw){const previous=dedup.get(p.start);if(previous&&!previous.forecast&&!p.forecast&&(previous.price!==p.price||previous.end!==p.end))throw Error('API_DUPLICATE: Modstridende offentliggjorte priser.');if(!previous||previous.forecast&&!p.forecast)dedup.set(p.start,p);}
+ return normalizePrices([...dedup.values()]);
 }
