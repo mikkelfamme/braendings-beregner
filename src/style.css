@@ -20,3 +20,7 @@
 .optimizer-block+.optimizer-block{margin-top:24px;padding-top:24px;border-top:1px solid var(--line)}
 @media(max-width:720px){.brand{gap:9px;min-width:0}.brandmark{width:32px;height:39px;flex:0 0 auto}.brand strong{font-size:21px;white-space:nowrap}.brand small{font-size:9px;letter-spacing:.04em}.header-actions .quiet{display:none}.optimizer-block+.optimizer-block{margin-top:18px;padding-top:18px}}
 @media(max-width:375px){.brand strong{font-size:19px}.brand small{max-width:150px}}
+
+/* v8: compact Billigst page without the large intro */
+.first-optimizer{padding-top:28px}
+@media(max-width:720px){.first-optimizer{padding-top:20px}}

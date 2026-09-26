@@ -1,4 +1,4 @@
-# Testresultat - Brændings Beregner 7.0.0
+# Testresultat - Brændings Beregner 8.0.0
 
 - 28 automatiske Node-tests bestået.
 - Alle 12 fabriksprogrammer bygger med samme energimodel.
