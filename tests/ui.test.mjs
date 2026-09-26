@@ -26,3 +26,31 @@ test('history UI and save firing action are removed',()=>{
   assert.doesNotMatch(app,/data-action="save"/);
   assert.doesNotMatch(app,/save-form/);
 });
+
+
+test('all program selectors start on Program 1 by default',()=>{
+  assert.match(app,/program:1,cheapProgram:1,dayProgram:1/);
+});
+
+test('Elprisen summary shows now, cheapest today and most expensive today',()=>{
+  assert.match(app,/summary\('Nu',current\)/);
+  assert.match(app,/summary\('Billigst i dag',cheapToday\)/);
+  assert.match(app,/summary\('Dyrest i dag',highToday\)/);
+});
+
+test('forecast hours have a separate visual class and legend',()=>{
+  assert.match(app,/x\.forecast\?' forecast'/);
+  assert.match(app,/prognose/);
+});
+
+test('Billigst uses a two-mode selector instead of showing both searches at once',()=>{
+  assert.match(app,/data-cheap-mode="next"/);
+  assert.match(app,/data-cheap-mode="day"/);
+  assert.match(app,/S\.cheapMode==='next'\?optimizerForm\(\):dayOptimizerForm\(\)/);
+});
+
+test('calculation result includes same-day comparison and savings',()=>{
+  assert.match(app,/Sammenlign med samme dag/);
+  assert.match(app,/Du kan spare/);
+  assert.match(app,/use-same-day-best/);
+});

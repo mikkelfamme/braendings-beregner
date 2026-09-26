@@ -72,8 +72,10 @@ export function findCheapest(program,rawPrices,now=Date.now()){
  for(let start=first;start<=last;start+=MINUTE){checked++;const r=costPrepared(start,program,prices);if(!r.complete){skipped++;continue;}candidates.push(r);}
  candidates.sort((a,b)=>Math.abs(a.cost-b.cost)<1e-8?a.start-b.start:a.cost-b.cost);
  const best=candidates[0]||null;
+ const worst=candidates.length?candidates[candidates.length-1]:null;
+ const reference=candidates.length?[...candidates].sort((a,b)=>a.start-b.start)[0]:null;
  const alternative=candidates.find(r=>{const {time}=localParts(r.start);return (!best||Math.abs(r.start-best.start)>=HOUR)&&time>='06:30'&&time<='21:30';})||null;
- return {first,last,checked,skipped,covered:checked-skipped,allStartsCovered:skipped===0,best,alternative,stepMinutes:1};
+ return {first,last,checked,skipped,covered:checked-skipped,allStartsCovered:skipped===0,best,worst,reference,alternative,stepMinutes:1};
 }
 
 /** Find the cheapest complete firing when the user chooses one Danish calendar day. */
@@ -83,7 +85,7 @@ export function findCheapestOnDay(program,rawPrices,date){
  const first=localToEpoch(date,'06:30').ms,last=localToEpoch(date,'21:30').ms;let checked=0,skipped=0;const candidates=[];
  for(let start=first;start<=last;start+=MINUTE){checked++;const r=costPrepared(start,program,prices);if(!r.complete){skipped++;continue;}candidates.push(r);}
  candidates.sort((a,b)=>Math.abs(a.cost-b.cost)<1e-8?a.start-b.start:a.cost-b.cost);
- return {date,first,last,checked,skipped,covered:checked-skipped,allStartsCovered:skipped===0,best:candidates[0]||null,stepMinutes:1};
+ return {date,first,last,checked,skipped,covered:checked-skipped,allStartsCovered:skipped===0,best:candidates[0]||null,worst:candidates.length?candidates[candidates.length-1]:null,stepMinutes:1};
 }
 
 /** Aggregate 15/60-minute API intervals to complete clock hours for display. */

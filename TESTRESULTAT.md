@@ -1,10 +1,10 @@
-# Testresultat – Brændings Beregner 9.0
+# Testresultat – Brændings Beregner 10.0
 
 Kørt med `npm test` og `npm run build`.
 
-- 32 automatiske tests
-- 32 bestået
+- 38 automatiske tests
+- 38 bestået
 - 0 fejlet
 - Build gennemført uden fejl
 
-Version 9 kontrollerer desuden, at bundmenuen er `Elprisen → Beregn → Billigst → Keramik ovnen`, at Elprisen er startsiden, at elprisgrafen ikke vises på Beregn, og at Brændinger/Gem brænding er fjernet.
+Testene dækker bl.a. prisgrundlag, API-fejl, alle 12 fabriksprogrammer, prisberegning, 72-timers optimering, valgt-dag-optimering, prognoser, prisfarver, standardvalg P1, den nye Billigst-vælger samt besparelsessammenligninger.

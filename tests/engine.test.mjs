@@ -46,3 +46,13 @@ test('selected-day optimizer searches only 06:30 through 21:30 on chosen date',(
  assert.ok(t.time>='06:30'&&t.time<='21:30');
  assert.equal(t.time,'07:15');
 });
+
+
+test('optimizers expose the most expensive viable start for savings comparison',()=>{
+ const p={...E.buildProgram(7),minutes:30,kwh:1.75,profile:[{minutes:30,kwh:1.75}]};
+ const ps=prices(start,30,i=>i<4?0.5:3);
+ const o=E.findCheapest(p,ps,start);
+ assert.ok(o.best); assert.ok(o.worst); assert.ok(o.worst.cost>=o.best.cost);
+ const d=E.findCheapestOnDay(p,ps,'2026-09-25');
+ assert.ok(d.best); assert.ok(d.worst); assert.ok(d.worst.cost>=d.best.cost);
+});
