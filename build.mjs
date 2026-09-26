@@ -8,4 +8,4 @@ const js='const E=(()=>{'+core+';return {'+expose.join(',')+'};})();\n'+await re
 const html=(await readFile('src/page.html','utf8')).replace('/*STYLE*/',await readFile('src/style.css','utf8')).replace('/*BUNDLE*/',js);
 await writeFile('index.html',html);await rm('dist',{recursive:true,force:true});await mkdir('dist');
 for(const f of ['index.html','assets','data'])await cp(f,'dist/'+f,{recursive:true});
-await writeFile('dist/.nojekyll','');console.log('Built Braending 8.0.0. No credentials included.');
+await writeFile('dist/.nojekyll','');console.log('Built Braending 9.0.0. No credentials included.');
