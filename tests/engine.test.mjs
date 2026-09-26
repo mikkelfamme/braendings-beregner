@@ -22,3 +22,27 @@ test('DST missing hour rejected',()=>assert.throws(()=>E.localToEpoch('2026-03-2
 
 test('price bands cover all prices without gaps',()=>{assert.equal(E.priceBand(.99),'low');assert.equal(E.priceBand(1),'low');assert.equal(E.priceBand(1.01),'medium');assert.equal(E.priceBand(2),'medium');assert.equal(E.priceBand(2.01),'high');assert.equal(E.priceBand(3),'high');assert.equal(E.priceBand(3.01),'very-high');});
 test('natural price range uses days for long feeds',()=>{assert.equal(E.naturalPriceRangeLabel(140),'Næste 6 døgn');assert.equal(E.naturalPriceRangeLabel(48),'Næste 2 døgn');assert.equal(E.naturalPriceRangeLabel(36),'Næste 36 timer');});
+
+test('localParts always pads Danish month and day for iPhone-safe dates',()=>{
+ const p=E.localParts(E.localToEpoch('2026-09-26','05:00').ms);
+ assert.equal(p.date,'2026-09-26');
+ assert.equal(p.time,'05:00');
+});
+
+test('selected-day optimizer searches only 06:30 through 21:30 on chosen date',()=>{
+ const p={...E.buildProgram(7),minutes:30,kwh:1.75,profile:[{minutes:30,kwh:1.75}]};
+ const day='2026-09-26';
+ const dataStart=E.localToEpoch(day,'00:00').ms;
+ const ps=prices(dataStart,30,i=>{
+  const t=E.localParts(dataStart+i*15*M);
+  if(t.date===day&&t.time>='07:15'&&t.time<'07:45')return .1;
+  if(t.date===day&&t.time>='02:00'&&t.time<'03:00')return .01;
+  return 2;
+ });
+ const o=E.findCheapestOnDay(p,ps,day);
+ assert.ok(o.best);
+ const t=E.localParts(o.best.start);
+ assert.equal(t.date,day);
+ assert.ok(t.time>='06:30'&&t.time<='21:30');
+ assert.equal(t.time,'07:15');
+});

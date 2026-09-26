@@ -6,9 +6,10 @@ export function finite(value, label='Tal') {
  return n;
 }
 const formatter=new Intl.DateTimeFormat('sv-SE',{timeZone:ZONE,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+const pad2=value=>String(value).padStart(2,'0');
 export function localParts(ms) {
  const p=Object.fromEntries(formatter.formatToParts(new Date(ms)).map(x=>[x.type,x.value]));
- return {date:`${p.year}-${p.month}-${p.day}`,time:`${p.hour}:${p.minute}`};
+ return {date:`${p.year}-${pad2(p.month)}-${pad2(p.day)}`,time:`${pad2(p.hour)}:${pad2(p.minute)}`};
 }
 export function localToEpoch(date,time,occurrence='first') {
  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(time)) throw new Error('V\u00e6lg en gyldig dato og et klokkesl\u00e6t.');

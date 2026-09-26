@@ -1,20 +1,15 @@
-# Opdater til version 6
+# Opdatering til Brændings Beregner 7.0
 
 1. Udpak ZIP-filen.
 2. Åbn mappen `GitHub-upload`.
-3. I GitHub-repositoriet: Code -> Add file -> Upload files.
-4. Upload INDHOLDET af `GitHub-upload`, så `index.html`, `src/`, `scripts/` og `.github/` ligger i roden.
-5. Commit til `main`.
-6. Gå til Settings -> Secrets and variables -> Actions -> Variables.
-7. `STROM_PRICE_BASIS_CONFIRMED` kan slettes. Version 6 bruger den ikke.
-8. Behold `STROM_AUTH_HEADER`, `STROM_INTERVAL_MINUTES` og `STROM_PRICE_LABEL`.
-9. Åbn Actions -> Udgiv Braending -> Run workflow.
-10. Åbn `build -> Hent priser fra Stroemligning` og kontrollér, at prisgrundlaget verificeres automatisk.
-11. Når workflowet er grønt, genindlæs GitHub Pages-siden uden cache.
+3. I GitHub: Code -> Add file -> Upload files.
+4. Upload indholdet af `GitHub-upload` oven på de eksisterende filer.
+5. Commit fx som `Opdater til Brændings Beregner 7`.
+6. Gå til Actions -> Udgiv Braending og vent på grøn build + deploy.
+7. Genindlæs appen på iPhone. Hvis den er gemt på hjemmeskærmen, luk appen helt og åbn den igen.
 
-Secrets `STROM_API_KEY` og `STROM_API_URL` skal blive stående og må aldrig uploades som filer.
-
-
-## Version 6
-
-Elprisoversigten er redesignet til iPhone: vandret swipe-graf, farvekodede søjler pr. time, kompakt dato/tid/pris, naturligt tidslabel som “Næste 6 døgn”, samt kort med aktuel pris og billigste time de næste 24 timer.
+## Ændret
+- Dato over elpriser vises nu robust som `dd.mm`, fx `26.09`.
+- Titlen er ændret til `Brændings Beregner`.
+- Ny funktion på fanen Billigst: vælg en dato og et program, og få dagens billigste start mellem 06.30 og 21.30.
+- Kontrollen `Ved skift til vintertid` er fjernet fra brugerfladen. Appen bruger dansk tidszone og API'ets tidsstemplede prisintervaller automatisk.

@@ -1,28 +1,10 @@
-# Testresultat · version 6
+# Testresultat - Brændings Beregner 7.0.0
 
-Kørt lokalt 26. september 2026.
-
-## Automatiske tests
-
-24 tests bestået uden fejl.
-
-Kontrollerne dækker bl.a.:
-
-- alle 12 fabriksprogrammer
-- fast 7,0 kW × programtid × 0,50-model
-- P2/P4-referenceberegningen
-- tidsvægtning af skiftende elpriser
-- manglende prisintervaller
-- timevisning
-- 72-timers billigste-start søgning og alternativ 06.30-21.30
-- `price.total` fra Strømligning
-- forecast-markering
-- automatisk prisgrundlagsverificering
-- `price.total = price.value + price.vat`
-- `price.total` = summen af el, tillæg, systemtarif, nettarif, elafgift og distribution
-- kontrol af produkt `nrgi_time`, netselskab `radius_c` og kundegruppe `c`
-- ingen krav om `STROM_PRICE_BASIS_CONFIRMED`
-- sikker fejltilstand ved 403/429, manglende credentials eller ændret tarif
-- ingen API-nøgle i publiceret prisfil eller testlog
-
-Den faktiske GitHub Action mod brugerens Strømligning-konto skal stadig køres efter upload for at bekræfte live-forbindelsen.
+- 28 automatiske Node-tests bestået.
+- Alle 12 fabriksprogrammer bygger med samme energimodel.
+- Prisparser bruger `price.total` og bevarer forecast-markering.
+- Datoformatet er gjort robust til `dd.mm` med nul-foranstillede tal.
+- Den nye dagsoptimering søger kun starter fra 06.30 til 21.30 på den valgte danske kalenderdato.
+- Manglende prisdækning giver ikke et opdigtet prisforslag.
+- JavaScript-syntaks er valideret efter build.
+- Build til GitHub Pages er gennemført lokalt uden credentials i outputtet.

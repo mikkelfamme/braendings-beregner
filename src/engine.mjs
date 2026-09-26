@@ -76,6 +76,16 @@ export function findCheapest(program,rawPrices,now=Date.now()){
  return {first,last,checked,skipped,covered:checked-skipped,allStartsCovered:skipped===0,best,alternative,stepMinutes:1};
 }
 
+/** Find the cheapest complete firing when the user chooses one Danish calendar day. */
+export function findCheapestOnDay(program,rawPrices,date){
+ validateProfile(program.profile,program.power);const prices=normalizePrices(rawPrices);
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date)))throw Error('Vælg en gyldig dato.');
+ const first=localToEpoch(date,'06:30').ms,last=localToEpoch(date,'21:30').ms;let checked=0,skipped=0;const candidates=[];
+ for(let start=first;start<=last;start+=MINUTE){checked++;const r=costPrepared(start,program,prices);if(!r.complete){skipped++;continue;}candidates.push(r);}
+ candidates.sort((a,b)=>Math.abs(a.cost-b.cost)<1e-8?a.start-b.start:a.cost-b.cost);
+ return {date,first,last,checked,skipped,covered:checked-skipped,allStartsCovered:skipped===0,best:candidates[0]||null,stepMinutes:1};
+}
+
 /** Aggregate 15/60-minute API intervals to complete clock hours for display. */
 export function hourlyPrices(rawPrices,now=Date.now(),maxHours=168){
  const prices=normalizePrices(rawPrices),first=Math.floor(now/HOUR)*HOUR,last=first+maxHours*HOUR,out=[];
