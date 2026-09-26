@@ -2,11 +2,11 @@
 
 Mobilvenlig prisberegner til Cerama SC 100 med G20-20.
 
-Version 4 bruger én fast energimodel for alle 12 fabriksprogrammer:
+Version 5 bruger én fast energimodel for alle 12 fabriksprogrammer:
 
 `7,0 kW × beregningsvarighed × 0,50 = estimeret kWh`
 
-Elprisen kommer fra Strømligning via GitHub Actions. API-nøglen ligger kun som GitHub Secret og kommer aldrig ud til browseren.
+Elprisen kommer fra Strømligning via GitHub Actions. Appen bruger `price.total` og verificerer automatisk, at totalen matcher moms og API'ets variable priskomponenter. API-nøglen ligger kun som GitHub Secret og kommer aldrig ud til browseren.
 
 ## Funktioner
 
@@ -17,6 +17,11 @@ Elprisen kommer fra Strømligning via GitHub Actions. API-nøglen ligger kun som
 - billigste start i de næste 72 timer
 - alternativ start mellem 06.30 og 21.30 og mindst 60 minutter fra bedste forslag
 - lokal brændingshistorik på den enkelte telefon/browser
+- automatisk kontrol af Strømlignings fulde variable prisgrundlag
+
+## Prisgrundlag
+
+For NRGi Time / Radius C bruger appen `price.total` i kr/kWh. Det inkluderer den variable elpris, moms, leverandørtillæg, systemtarif, nettarif, elafgift og distribution. Faste abonnementer fordeles ikke på en brænding.
 
 ## Datakilder
 

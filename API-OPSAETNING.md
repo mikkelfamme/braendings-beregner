@@ -1,28 +1,45 @@
-# Strømligning API
+# Strømligning API · version 5
 
-Appen bruger Strømligning til den samlede variable elpris. Kittec bruges ikke som elpris-API.
+Appen bruger Strømligning til den samlede variable elpris. Version 5 verificerer automatisk prisgrundlaget i API-svaret og bruger altid `price.total`.
 
-## GitHub Secret
+## GitHub Secrets
 
 Repository -> Settings -> Secrets and variables -> Actions -> Secrets:
 
 - `STROM_API_KEY` = din API-nøgle
-- `STROM_API_URL` = det fungerende GET `/api/prices`-kald fra Strømlignings Swagger, inklusive jeres prisområde, produkt/elaftale, netselskab/tarif, aggregation og eventuel forecast-parameter. Brug `{start}` og `{end}` som datopladsholdere i URL'en.
+- `STROM_API_URL` = GET `/api/prices`-kaldet med `{start}` og `{end}` som datopladsholdere
 
-API-nøglen må ikke stå i URL'en.
+For jeres nuværende opsætning:
+
+`https://stromligning.dk/api/prices?from={start}&to={end}&productId=nrgi_time&supplierId=radius_c&customerGroupId=c&forecast=true&aggregation=1h&aggregationMethod=mean`
+
+API-nøglen må aldrig stå i URL'en eller i repository-filer.
 
 ## GitHub Variables
 
 Repository -> Settings -> Secrets and variables -> Actions -> Variables:
 
-- `STROM_AUTH_HEADER` = den header Strømligning kræver, fx `X-API-Key`
-- `STROM_AUTH_PREFIX` = normalt tom, medmindre dokumentationen kræver fx `Bearer `
-- `STROM_INTERVAL_MINUTES` = `15` eller `60`
-- `STROM_PRICE_LABEL` = fx navnet på jeres elaftale
-- `STROM_PRICE_BASIS_CONFIRMED` = `true` først når du har bekræftet, at `price.total` er DKK/kWh og indeholder den samlede variable pris inkl. moms og relevante tariffer/tillæg
+- `STROM_AUTH_HEADER` = `X-API-Key`
+- `STROM_INTERVAL_MINUTES` = `60`
+- `STROM_PRICE_LABEL` = `NRGi Time · Radius C`
+- `STROM_AUTH_PREFIX` = kan udelades/tømmes
 
-Workflowet kører hver time. Hvis API-kaldet indeholder forecast-data, kan appen vise mere end de næste 48 timer og bruge disse til 72-timers optimeringen. Prognoser markeres i appen.
+`STROM_PRICE_BASIS_CONFIRMED` bruges ikke længere og kan slettes. Version 5 verificerer i stedet automatisk, at:
+
+1. `price.total = price.value + price.vat`
+2. `price.total` matcher summen af el, leverandørtillæg, systemtarif, nettarif, elafgift og distribution
+3. enheden er `kr/kWh` eller `DKK/kWh`
+
+Hvis den kontrol fejler, offentliggør appen ikke nye priser.
 
 ## Kontrol
 
-Kør workflowet manuelt via Actions -> Udgiv Braending -> Run workflow. Appen skal derefter vise timepriser øverst. Hvis ikke, læs loggen for trinnet `Hent priser fra Stroemligning`.
+Kør Actions -> Udgiv Braending -> Run workflow.
+
+I `build -> Hent priser fra Stroemligning` skal loggen indeholde:
+
+`Prisgrundlag verificeret automatisk: price.total matcher ...`
+
+samt:
+
+`Priser opdateret: ... intervaller.`

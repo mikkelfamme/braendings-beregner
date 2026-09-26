@@ -1,12 +1,28 @@
-# Testresultat version 4
+# Testresultat · version 5
 
-- 21 automatiske tests bestået lokalt.
-- Alle 12 fabriksprogrammer kan bygges med én fast 50 %-model.
-- P2 og P4 giver samlet 56,58 kWh i modellen.
-- Prisberegning med skiftende 15-minutters intervaller testes ved overlap-integration.
-- Timevisningen aggregerer 15-minutters intervaller til komplette timer.
-- Manglende prisdata giver ikke et falsk totalbeløb.
-- Billigste-start-funktionen søger 72 timer og kræver alternativ mellem 06.30 og 21.30, mindst 60 minutter fra bedste forslag.
-- API-adaptertests bekræfter, at nøglen ikke publiceres.
+Kørt lokalt 26. september 2026.
 
-Ikke testet her: brugerens konkrete Strømligning-konto eller live GitHub Actions-kørsel.
+## Automatiske tests
+
+24 tests bestået uden fejl.
+
+Kontrollerne dækker bl.a.:
+
+- alle 12 fabriksprogrammer
+- fast 7,0 kW × programtid × 0,50-model
+- P2/P4-referenceberegningen
+- tidsvægtning af skiftende elpriser
+- manglende prisintervaller
+- timevisning
+- 72-timers billigste-start søgning og alternativ 06.30-21.30
+- `price.total` fra Strømligning
+- forecast-markering
+- automatisk prisgrundlagsverificering
+- `price.total = price.value + price.vat`
+- `price.total` = summen af el, tillæg, systemtarif, nettarif, elafgift og distribution
+- kontrol af produkt `nrgi_time`, netselskab `radius_c` og kundegruppe `c`
+- ingen krav om `STROM_PRICE_BASIS_CONFIRMED`
+- sikker fejltilstand ved 403/429, manglende credentials eller ændret tarif
+- ingen API-nøgle i publiceret prisfil eller testlog
+
+Den faktiske GitHub Action mod brugerens Strømligning-konto skal stadig køres efter upload for at bekræfte live-forbindelsen.

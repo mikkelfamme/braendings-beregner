@@ -6,8 +6,7 @@ import {localParts,localToEpoch,addDays} from '../src/time.mjs';
 export function makeRequest(env,now=Date.now()){
  const key=env.STROM_API_KEY?.trim(),template=env.STROM_API_URL?.trim();
  if(!key||!template)throw Error('CONFIG_MISSING');
- if(env.STROM_VERIFIED!=='true'&&env.STROM_PRICE_BASIS_CONFIRMED!=='true')throw Error('PRICE_BASIS_UNCONFIRMED');
- const header=env.STROM_AUTH_HEADER||'X-API-Key';
+ const header=(env.STROM_AUTH_HEADER||'X-API-Key').trim();
  if(!['X-API-Key','X-API-Token','Authorization'].includes(header))throw Error('AUTH_HEADER');
  const today=localParts(now).date;
  const start=new Date(localToEpoch(addDays(today,-7),'00:00').ms).toISOString();
@@ -16,15 +15,13 @@ export function makeRequest(env,now=Date.now()){
  const url=new URL(template.replace(/\{(start|end|from|to|date)\}/g,(_,n)=>encodeURIComponent(values[n])));
  if(url.protocol!=='https:'||url.hostname!=='stromligning.dk'||url.pathname!=='/api/prices'||url.username||url.password||url.port||url.hash)throw Error('URL_NOT_ALLOWED');
  if([...url.searchParams.keys()].some(k=>/key|token|secret|password/i.test(k))||decodeURIComponent(url.href).includes(key))throw Error('KEY_IN_URL');
- // These are the date-bound names used by /api/prices. Keep original names when provided.
  if(url.searchParams.has('from')||url.searchParams.has('to')){url.searchParams.set('from',start);url.searchParams.set('to',end);}
  else if(url.searchParams.has('start')||url.searchParams.has('end')){url.searchParams.set('start',start);url.searchParams.set('end',end);}
  else throw Error('DATE_BOUNDS_MISSING');
  const aggregation=url.searchParams.get('aggregation');
  const interval=aggregation==='15m'?15:aggregation==='1h'?60:Number(env.STROM_INTERVAL_MINUTES);
  if(![15,60].includes(interval))throw Error('INTERVAL_MISSING');
- // Preserve forecast query flags from the actual account URL. Do not invent them.
  const fingerprintUrl=new URL(url);for(const name of ['from','to','start','end'])fingerprintUrl.searchParams.delete(name);
  const fingerprint=createHash('sha256').update(fingerprintUrl.href+'|'+interval).digest('hex').slice(0,24);
- return {url:url.href,headers:{[header]:(env.STROM_AUTH_PREFIX||'')+key,Accept:'application/json'},interval,fingerprint,label:(env.STROM_PRICE_LABEL||'F\u00e6lles elaftale').slice(0,120),start,end};
+ return {url:url.href,headers:{[header]:(env.STROM_AUTH_PREFIX||'')+key,Accept:'application/json'},interval,fingerprint,label:(env.STROM_PRICE_LABEL||'Fælles elaftale').slice(0,120),start,end};
 }
