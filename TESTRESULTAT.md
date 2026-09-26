@@ -1,4 +1,4 @@
-# Testresultat · version 5
+# Testresultat · version 6
 
 Kørt lokalt 26. september 2026.
 

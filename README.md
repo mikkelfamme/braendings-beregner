@@ -2,7 +2,7 @@
 
 Mobilvenlig prisberegner til Cerama SC 100 med G20-20.
 
-Version 5 bruger én fast energimodel for alle 12 fabriksprogrammer:
+Version 6 bruger én fast energimodel for alle 12 fabriksprogrammer:
 
 `7,0 kW × beregningsvarighed × 0,50 = estimeret kWh`
 
@@ -32,3 +32,8 @@ For NRGi Time / Radius C bruger appen `price.total` i kr/kWh. Det inkluderer den
 - Nabertherm TOP 100: 100 liter / 7,0 kW reference
 
 Afkøling efter programslut er ikke tidsfastsat i Cerama-manualen og bliver derfor ikke opdigtet i appen.
+
+
+### Elprisgraf
+
+Version 6 viser de tilgængelige timepriser som et vandret søjlediagram. Prisniveauer: ≤1,00 kr./kWh grøn, 1,01–2,00 gul, 2,01–3,00 rød og >3,00 mørkerød. Prognosetimer markeres med P.

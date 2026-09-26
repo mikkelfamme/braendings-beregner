@@ -87,6 +87,23 @@ export function hourlyPrices(rawPrices,now=Date.now(),maxHours=168){
  return out;
 }
 
+
+/** UI helper for the hourly price chart. Thresholds are continuous so no values fall into gaps. */
+export function priceBand(price){
+ price=finite(price,'Elpris');
+ if(price<=1)return 'low';
+ if(price<=2)return 'medium';
+ if(price<=3)return 'high';
+ return 'very-high';
+}
+
+/** Human-readable availability label for the top price overview. */
+export function naturalPriceRangeLabel(hours){
+ const n=Math.max(0,Math.floor(finite(hours,'Antal timer')));
+ if(n>=48){const days=Math.ceil(n/24);return 'Næste '+days+' døgn';}
+ return 'Næste '+n+' timer';
+}
+
 export function parseStromligning(payload,intervalMinutes=15){
  if(!payload||!Array.isArray(payload.prices))throw Error('API_FORMAT: Svaret mangler prices-listen.');
  if(![15,60].includes(Number(intervalMinutes)))throw Error('API_INTERVAL: Vælg 15 eller 60 minutter.');

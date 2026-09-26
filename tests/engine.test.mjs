@@ -19,3 +19,6 @@ test('no recommendation is fabricated without data',()=>{const o=E.findCheapest(
 test('API parser uses price.total and preserves forecast',()=>{const p=E.parseStromligning({prices:[{date:'2026-09-25T00:00:00Z',price:{total:2.7},forecast:true}]});assert.equal(p[0].price,2.7);assert.equal(p[0].forecast,true);});
 test('API parser rejects missing timezone',()=>assert.throws(()=>E.parseStromligning({prices:[{date:'2026-09-25T00:00:00',price:{total:2}}]})));
 test('DST missing hour rejected',()=>assert.throws(()=>E.localToEpoch('2026-03-29','02:30')));
+
+test('price bands cover all prices without gaps',()=>{assert.equal(E.priceBand(.99),'low');assert.equal(E.priceBand(1),'low');assert.equal(E.priceBand(1.01),'medium');assert.equal(E.priceBand(2),'medium');assert.equal(E.priceBand(2.01),'high');assert.equal(E.priceBand(3),'high');assert.equal(E.priceBand(3.01),'very-high');});
+test('natural price range uses days for long feeds',()=>{assert.equal(E.naturalPriceRangeLabel(140),'Næste 6 døgn');assert.equal(E.naturalPriceRangeLabel(48),'Næste 2 døgn');assert.equal(E.naturalPriceRangeLabel(36),'Næste 36 timer');});
